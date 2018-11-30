@@ -1,0 +1,33 @@
+#start at the top applying rules to given notam
+#if it's a keyword, search for it
+# if it wants a replacement, replace it
+#if it's not a keyword, apply a custom rule
+#if it's categorized, apply the notam to the category
+#SCORE:	0=BASE
+#			5=FUEL
+#			3=BLASTING
+#IS_KEYWORD	ABBREV		
+0				VICTORS				VICTOR	0
+1				FUEL					FUEL		0
+1				RSC					RWY		-5		RUNWAY_SURFACE_CONDITION
+1				BLASTING				MISC		3
+1				NDB					APPR		4
+1				ILS					APPR		4
+1				VOR					APPR		4	
+1				LNAV					APPR		1		
+1				RNAV					APPR		1		
+1				LNAV(GNSS)			APPR		1		
+1				RNAV(GNSS)			APPR		1		
+1				OBST					OBST		0
+1				STAR					APPR		-2
+1				PAPI					RWY		-4
+1				NEW_TOWER			OBST		-4
+1				REDL					RWY		-2		RUNWAY_EDGE_LIGHTS
+1				NEW_WIND_FARM		OBST		-5
+1				CRANE					OBST		-1
+1				RAG					RWY		-1		RUNWAY_ARRESTOR_GEAR
+1				SID					MISC		0
+1				OPD					MISC		0		OBSTACLE_DEPARTURE_PROCEDURE
+1				SERVICES				MISC		1
+1				ALS					RWY		3		APPROACH_LIGHTING_SYSTEM
+0				RECENT				MISC		0
