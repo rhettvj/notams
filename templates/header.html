@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<head>
+<title>Notams</title>
+<style>
+   body {
+      background-color: #020c06  
+   }
+	a:link {
+		color: #549435;
+		font-size: medium;
+	   font-family: Monospace, regular;
+	}
+	.activefile {
+		color: #549435;
+		font-size: medium;
+	   font-family: Monospace, regular;
+		text-decoration: underline;
+		font-weight: bold;
+	}	
+	a:visited {
+		color: #549435;
+		font-size: medium;
+      font-family: Monospace, regular;
+	}
+	a:hover {
+		color: #549435;
+		font-size: medium;
+      font-family: Monospace, regular;
+	}
+
+	a:active {
+		color: #549435;
+		font-size: medium;
+      font-family: Monospace, regular;
+	}
+   .category {
+		color: #549435;
+      font-size: medium;
+      font-family: Monospace, regular;
+		font-weight: normal;
+	}
+   .normal {
+      color:  #0bd800;
+      font-size: medium;
+      font-family: Monospace, regular;
+		margin-bottom: 0;
+		margin-left: 0em;
+   }
+	.subdued {
+		color: #2b8101;
+		font-size: medium;
+		font-family: Monospace, regular;
+		margin-bottom: 0;
+		margin-left: 1em;
+	}
+   .tags {
+      color: #8dc000;
+      font-size: smaller;
+      font-face: Monospace, regular;
+   }   
+	.date {
+		margin-top: 0;
+		color: #145a32;
+		font-size: smaller;
+		font-family: Monospace, regular;
+		margin-left: 2em;
+	}
+	.casual_date {
+      color: #8dc000;
+	}
+	details > summary::-webkit-details-marker {
+		display: none;
+	}
+	details > summary {
+		color: #549435;
+		list-style: none;
+		content: "+";
+	}
+	.input {
+		margin-left: auto;
+		margin-right: auto;
+      color:  #0bd800;
+      font-size: medium;
+      font-family: Monospace, regular;
+	}
+	input[type=text] {
+		border: 2px solid #0bd800;
+		border-radius: 4px;
+		background-color: #020c06;
+		color: #0bd800;
+	}
+	.center {
+		margin-left: auto;
+		margin-right: auto;
+	}
+	
+</style>
+</head>
+<div><p class=normal>
+</p></div>
+
+	<div class=center>
+	<form action='./' method='POST'>
+	<p class=input>Aerodrome ID's <input type=text name=aid value="{{ aid }}" /> <input type=submit name=product value=notams />
+	<input type=submit name=product value=weather /></p>
+	</form></div>
+<p class=normal>
+{% with messages = get_flashed_messages() %}
+   {% if messages %}
+      {% for message in messages %}
+         {{ message }}
+      {% endfor %}
+   {% endif %}
+{% endwith %}
+</p>
+
+	{% if files %}
+			  {% for k1, f in files.items() %}
+					  <!-- navigator bar -->
+					  {% if loop.first == False %}<br><br>{% endif %}
+					  {% for key, f2 in files.items() %}
+						  {% if f2.name == f.name %}
+							  <a class=activefile id={{ key }}>&gt; {{ f2.name }} ({{ f2.num_notams }})</a>&nbsp;
+						  {% else %}
+							  <a href=#{{ key }}>{{ f2.name }} ({{ f2.num_notams }})</a>&nbsp;
+						  {% endif %}
+					  {% endfor %}
+					<!-- for each category in this file -->
+				  {% for c in f.sorted_c_list %} 
+					  {% if c.hide == True %}
+						  <br><br><details><summary><span class=category>{{ c.full_name }} ({{ c.num_notams }})</span></summary>
+					  {% else %}
+						  <br><br><span class=category>{{ c.full_name }} ({{ c.num_notams }})</span>
+					  {% endif %}
+						<!-- for each notam in this category -->
+					  {% for n in c.n_list %}
+						  <p class=subdued>{{ n.origin_name }}<br>
+							  <span class=normal>&gt;{{ n.text }}</span>
+						  </p>
+						  <p class=date>
+						  {% if n.from_time_str %} 
+							  From: {{ n.from_time_str }} <span class=casual_date>{{ n.from_time_casual }}</span> <br>
+						  {% endif %}
+
+						  {% if n.till_time_str %}
+							  Until: {{ n.till_time_str }} <span class=casual_date>{{ n.till_time_casual }}</span><br>
+						  {% endif %}
+
+						  {% if n.issue_time_str %}
+							  ( issued: {{ n.issue_time_str }} <span class=casual_date>{{ n.issue_time_casual }}</span>)
+						  {% endif %}
+						  </p>
+					  {% endfor %}
+					  {% if c.hide %}
+						  </details>
+					  {% endif %}
+				  {% endfor %}
+				  
+			  {% endfor %} 
+	{% endif %}
