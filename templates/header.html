@@ -83,6 +83,12 @@
       font-size: medium;
       font-family: Monospace, regular;
 	}
+	.input_note {
+		color: #2b8101;
+		padding-top: 0;
+		font-size: small;
+		font-family: Monospace, regular;
+	}
 	input[type=text] {
 		border: 2px solid #0bd800;
 		border-radius: 4px;
@@ -101,8 +107,9 @@
 
 	<div class=center>
 	<form action='./' method='POST'>
-	<p class=input>Aerodrome ID's <input type=text name=aid value="{{ aid }}" /> <input type=submit name=product value=notams />
-	<input type=submit name=product value=weather /></p>
+			  <p class=input>Aerodrome ID's <input type=text name=aid value="{{ aid }}" /> <input type=submit name=product value=notams />
+			  <input type=submit name=product value=weather /></p>
+			  <p class=input_note>For weather, add timezone difference -4, -5 etc to see times as local</p>
 	</form></div>
 <p class=normal>
 {% with messages = get_flashed_messages() %}

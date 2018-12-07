@@ -141,16 +141,15 @@ def main():
 					# filename : nFile
 	a_id = None
 	category_parents_list = {}
-	tz_diff = -0
+	tz_diff = None
 	if request.method == 'POST':
 		result=request.form
 
 		splt = result["aid"].upper().split()
 		for word in splt:
-			if word[0:2].upper() == "TZ" and (word[2:3] == '-' or word[2:3] == '+'):
-				if word[3:4].isdigit():
-					tz_diff = int(word[2:4])
-					splt.remove(word)
+			if word[1:].isdigit() and int(word) > -12 and int(word) < 12:
+				tz_diff = int(word)
+				splt.remove(word)
 		a_id = ' '.join(splt)
 
 	if a_id and result["product"] == "notams":
@@ -190,7 +189,15 @@ def main():
 			f.sorted_c_list = sorted(f.c_list.values(), key=operator.attrgetter('priority'))
 	elif a_id is None:
             a_id = DEFAULT_AID
-	a_id = "TZ" + str(tz_diff) + " " + a_id
+	if tz_diff:
+		if tz_diff > 0:
+			str_tz_diff = "+" + str(tz_diff)
+		else:
+			str_tz_diff = str(tz_diff)
+	else:
+		str_tz_diff = ""
+
+	a_id = str(str_tz_diff) + " " + a_id
 	return render_template('header.html', files=nfiles, aid=a_id)
 
 
@@ -403,19 +410,31 @@ def parse_notam(raw_notam):
 	n = Notam(origin_code, origin_name, parse_time(raw_issue_time), parse_time(raw_from_time), parse_time(raw_till_time), text)
 	return n;
 
+
+#tz_diff is an int specifying the difference between UTC and local (ie. -4 or -5 for EST)
+#there is no way (short of javascript etc) to find the user's timezone, so we need to 
+#rely on them giving it to us explicitely
 def wx_time_local(t, tz_diff):
-	if tz_diff == 0:
+	if tz_diff == 0 or tz_diff is None:
 		return t + "Z"
-	TZ_DIFF = tz_diff
 	today = "L"
 	tomorrow = "TMRW"
 	yesterday = "YSDY"
 	two_days_ago = "2DYSAGO"
 
-	
-	now = datetime.datetime.now()
+	now = datetime.datetime.now() #server's date.. not users
+	# Get Today's day of month:
+	# ex1: (TZ-5) 0500Z 7 December: 00, 7 December
+	# ex2: (TZ-5) 0400Z 7 December: -1, 6 December
+	# ex3: (TZ-5) 0400Z 1 December: -1, 0 December
+	# we'll be comparing the timestamps in the same manner later and producing a relative result
+	if now.hour + tz_diff < 0:
+		itoday = now.day - 1
+	else:
+		itoday = now.day
+
 	if t is None or int(t) == 0:
-		return None;
+		return t + "Z"; #receiving 0000 usually doesn't mean 0000Z, it represents the whole day or something
 	if t.isdigit():
 		if len(t) >= 4:
 			minute = 0
@@ -424,25 +443,25 @@ def wx_time_local(t, tz_diff):
 		if len(t) >= 6:
 				minute = int(t[4:6])
 	str_today = ""
-	#ex: 0200 Z tomorrow -5TZ
-	# (24+ (2-5)) = 2200Z yesterday
-	if hour+TZ_DIFF <= 0: #roll back the day by one (avoid caledar stuff by saying 'yesterday')
-		if day > now.day: #time given is showing as tomorrow, but is today local
+	#ex: 0500 Z tomorrow -5TZ
+	# (24+ (5-5)) = 0000Z tomorrow
+	if hour+tz_diff < 0: #roll back the day by one (avoid caledar stuff by saying 'yesterday')
+		if day > itoday: #time given is showing as tomorrow, but is today local
 			str_today = today
-			hour = 24+(hour+TZ_DIFF)
-		elif day == now.day: #time given is showing today, but is actualy yesterday local
+			hour = 24+(hour+tz_diff)
+		elif day == itoday: #time given is showing today, but is actualy yesterday local
 			str_today = yesterday
-			hour = 24+(hour+TZ_DIFF)
-		elif day < now.day: #time tdygiven shows yesterday, 
+			hour = 24+(hour+tz_diff)
+		elif day < itoday: #time tdygiven shows yesterday, 
 			str_today = two_days_ago
-			hour = 24+(hour+TZ_DIFF)
-	else:
-		hour = hour+TZ_DIFF
-		if day == now.day+1:
+			hour = 24+(hour+tz_diff)
+	else: #normal time during the day (not morning Z) so days remain the same
+		hour = hour+tz_diff
+		if day == itoday+1:
 			str_today = tomorrow
-		elif day == now.day-1:
+		elif day == itoday-1: #date stamp showing the same as server-local-today-1
 			str_today = yesterday
-		elif day == now.day:
+		elif day == itoday:
 			str_today = today
 
 	return '{:02d}{:02d}{}'.format(int(hour),int(minute),str_today)
