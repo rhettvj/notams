@@ -13,6 +13,7 @@ import operator
 app = Flask(__name__)
 app.secret_key = 'nsecret'
 g_error_str = ""
+DEFAULT_AID = "CYTR"
 # List order:
 #  Notam File
 #		Category
@@ -140,9 +141,17 @@ def main():
 					# filename : nFile
 	a_id = None
 	category_parents_list = {}
+	tz_diff = -0
 	if request.method == 'POST':
 		result=request.form
-		a_id = result["aid"].upper()
+
+		splt = result["aid"].upper().split()
+		for word in splt:
+			if word[0:2].upper() == "TZ" and (word[2:3] == '-' or word[2:3] == '+'):
+				if word[3:4].isdigit():
+					tz_diff = int(word[2:4])
+					splt.remove(word)
+		a_id = ' '.join(splt)
 
 	if a_id and result["product"] == "notams":
 		html = download_file(a_id, "notams")
@@ -171,7 +180,7 @@ def main():
 		pcat.priority = 0
 		category_parents_list["WX"] = pcat
 		for raw_wx in raw_list:
-			n = parse_wx(raw_wx)
+			n = parse_wx(raw_wx, tz_diff)
 			file_notam(n, nfiles, category_parents_list)
 
 		for f in nfiles.values():
@@ -179,7 +188,9 @@ def main():
 			#the template is expecting a 'view', not a dict and this seems like an easy way to 
 			#produce a view
 			f.sorted_c_list = sorted(f.c_list.values(), key=operator.attrgetter('priority'))
-
+	elif a_id is None:
+            a_id = DEFAULT_AID
+	a_id = "TZ" + str(tz_diff) + " " + a_id
 	return render_template('header.html', files=nfiles, aid=a_id)
 
 
@@ -301,7 +312,7 @@ def z_to_l(z_dt):
 	return z_dt.replace(tzinfo=timezone.utc).astimezone(tz=None)
 
 
-def parse_wx(raw_wx):
+def parse_wx(raw_wx, tz_diff):
 	wxtype = ""
 	origin_code = None
 	raw_issue_time_l = None
@@ -319,35 +330,35 @@ def parse_wx(raw_wx):
 		x = 0
 		for word in results:
 			if len(word) == 7 and word[0:6].isdigit(): #051600Z
-				results[x] = wx_time_local(word[0:6])
+				results[x] = wx_time_local(word[0:6], tz_diff)
 			x += 1
 		text = ' '.join(results)
 
 	elif raw_wx[0:3] == 'TAF':
 		wxtype = 'TAF'
+		raw_wx = raw_wx.replace("*", "")
 		results = raw_wx.split()
 		x = 0
 		for word in results:
-			flash ("." + word)
 			if origin_code is None and len(word) == 4:
 				origin_code = word
 			elif re.match("FM\d{6}", word) is not None: #FM052000
-				results[x] = "<br>" + "FM" + wx_time_local(word[2:8])
+				results[x] = "<br>" + "FM" + wx_time_local(word[2:8], tz_diff)
 			elif word == 'TEMPO':
 				results[x] = "<br>&nbsp;&nbsp;" + word
 			elif word == 'RMK':
 				results[x] = "<br>" + word
 			elif word == 'BECMG':
 				results[x] = "<br>" + word
-			elif len(word) == 7 and word[0:6].isdigit(): #051600Z
-				results[x] = wx_time_local(word[0:6])
+			elif (len(word) == 7 or len(word) == 8) and word[0:6].isdigit(): #051600Z[=]
+				results[x] = wx_time_local(word[0:6], tz_diff)
 			elif re.match("\d{4}/\d{4}", word): #0210/0218
-				results[x] = wx_time_local(word[0:4]) + "/" + wx_time_local(word[5:9])
+				results[x] = wx_time_local(word[0:4], tz_diff) + "/" + wx_time_local(word[5:9], tz_diff)
 			#elif raw_issue_time is None and len(word) == 6 and word.isdigit():
 			#	raw_issue_time = word
 			x += 1
 		text = Markup(' '.join(results))
-	text = text.replace("*", "")
+	#text = text.replace("*", "")
 	text = text.lower()
 	return Wx(origin_code, text)
 
@@ -392,12 +403,16 @@ def parse_notam(raw_notam):
 	n = Notam(origin_code, origin_name, parse_time(raw_issue_time), parse_time(raw_from_time), parse_time(raw_till_time), text)
 	return n;
 
-def wx_time_local(t):
+def wx_time_local(t, tz_diff):
+	if tz_diff == 0:
+		return t + "Z"
+	TZ_DIFF = tz_diff
 	today = "L"
 	tomorrow = "TMRW"
 	yesterday = "YSDY"
 	two_days_ago = "2DYSAGO"
-	TZ_DIFF = 5
+
+	
 	now = datetime.datetime.now()
 	if t is None or int(t) == 0:
 		return None;
@@ -411,22 +426,19 @@ def wx_time_local(t):
 	str_today = ""
 	#ex: 0200 Z tomorrow -5TZ
 	# (24+ (2-5)) = 2200Z yesterday
-	if hour-TZ_DIFF <= 0: #roll back the day by one (avoid caledar stuff by saying 'yesterday')
+	if hour+TZ_DIFF <= 0: #roll back the day by one (avoid caledar stuff by saying 'yesterday')
 		if day > now.day: #time given is showing as tomorrow, but is today local
-			flash("raw:" + t + "tdy")
 			str_today = today
-			hour = 24+(hour-TZ_DIFF)
+			hour = 24+(hour+TZ_DIFF)
 		elif day == now.day: #time given is showing today, but is actualy yesterday local
-			flash("raw:" + t + "yst")
 			str_today = yesterday
-			hour = 24+(hour-TZ_DIFF)
+			hour = 24+(hour+TZ_DIFF)
 		elif day < now.day: #time tdygiven shows yesterday, 
 			str_today = two_days_ago
-			hour = 24+(hour-TZ_DIFF)
+			hour = 24+(hour+TZ_DIFF)
 	else:
-		hour = hour-TZ_DIFF
+		hour = hour+TZ_DIFF
 		if day == now.day+1:
-			flash("raw:" + t + "tmr")
 			str_today = tomorrow
 		elif day == now.day-1:
 			str_today = yesterday
