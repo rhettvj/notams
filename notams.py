@@ -164,7 +164,7 @@ def main():
 		for f in nfiles.values(): #go thru each file
 			for c in f.c_list.values(): #go thru each category
 				#sort each notam (notams are in [] lists)
-				c.n_list = sorted(c.n_list, key=operator.attrgetter('score'))
+				c.n_list = sorted(c.n_list, key=operator.attrgetter('score'), reverse=True)
 		#and then sort the categories themselves (categories are in {} dicts)
 			f.sorted_c_list = sorted(f.c_list.values(), key=operator.attrgetter('priority')) #key=operator.attrgetter('priority'))		
 
