@@ -366,7 +366,7 @@ def parse_wx(raw_wx, tz_diff):
 			x += 1
 		text = Markup(' '.join(results))
 	#text = text.replace("*", "")
-	text = text.lower()
+	#text = text.lower()
 	return Wx(origin_code, text)
 
 
