@@ -181,12 +181,12 @@ def main():
 		for raw_wx in raw_list:
 			n = parse_wx(raw_wx, tz_diff)
 			file_notam(n, nfiles, category_parents_list)
-
 		for f in nfiles.values():
 			#this is a little hacky but there will be only be 1 category (WX)
 			#the template is expecting a 'view', not a dict and this seems like an easy way to 
 			#produce a view
 			f.sorted_c_list = sorted(f.c_list.values(), key=operator.attrgetter('priority'))
+
 	elif a_id is None:
             a_id = DEFAULT_AID
 	if tz_diff:
@@ -237,7 +237,7 @@ def file_notam(n, file_list, parent_list):
 		#add to the notam to the file. the file itself will categorize it	
 		file_list[n.origin_code].add(n, parent_list)
 	else:
-		err("Origin code not found for item " + n.text)
+		err("Origin code not found on one line-- line not included: " + n.text)
 
 #RULES
 def load_rules(filename, category_parents_list):
@@ -324,13 +324,13 @@ def parse_wx(raw_wx, tz_diff):
 	origin_code = None
 	raw_issue_time_l = None
 
-	text = ""
+	text = "ERROR PARSING WEATHER LINE"
 	m_or_s = False
 	raw_wx = raw_wx[1:] #strip preceding *
 	raw_wx = raw_wx.replace("<br>", "")
 
 	#METAR/SPECI
-	if raw_wx[0:5] == 'METAR' or raw_wx[0:4] == 'SPECI':
+	if raw_wx[0:5] == 'METAR' or raw_wx[0:5] == 'SPECI':
 		wxtype = raw_wx
 		results = raw_wx.split()
 		origin_code = results[1]
@@ -349,18 +349,22 @@ def parse_wx(raw_wx, tz_diff):
 		for word in results:
 			if origin_code is None and len(word) == 4:
 				origin_code = word
-			elif re.match("FM\d{6}", word) is not None: #FM052000
-				results[x] = "<br>" + "FM" + wx_time_local(word[2:8], tz_diff)
 			elif word == 'TEMPO':
 				results[x] = "<br>&nbsp;&nbsp;" + word
 			elif word == 'RMK':
 				results[x] = "<br>" + word
 			elif word == 'BECMG':
 				results[x] = "<br>" + word
+			elif word[0:4] == 'PROB':
+				results[x] = "<br>&nbsp;&nbsp;" + word
 			elif (len(word) == 7 or len(word) == 8) and word[0:6].isdigit(): #051600Z[=]
 				results[x] = wx_time_local(word[0:6], tz_diff)
 			elif re.match("\d{4}/\d{4}", word): #0210/0218
 				results[x] = wx_time_local(word[0:4], tz_diff) + "/" + wx_time_local(word[5:9], tz_diff)
+			elif re.match("FM\d{6}", word) is not None: #FM052000
+				results[x] = "<br>" + "FM" + wx_time_local(word[2:8], tz_diff)
+			elif word[1:] == '1/2SM': #11/2SM or 21/2SM
+				results[x] = word[0] + "+" + word[1:]
 			#elif raw_issue_time is None and len(word) == 6 and word.isdigit():
 			#	raw_issue_time = word
 			x += 1
@@ -376,7 +380,7 @@ def parse_notam(raw_notam):
 	raw_till_time = None
 	origin_code = ""
 	origin_name = ""
-	text = ""
+	text = "ERROR PARSING NOTAM"
 
 	#Get the time block first because it changes the way we collect the text
 	date_match2 = re.search("(\d{10}?).*\d{10}\*$", raw_notam) #match if there's a FROM date found
